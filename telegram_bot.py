@@ -5,7 +5,7 @@ from telegram.ext import Application, MessageHandler, CommandHandler, filters, C
 from telegram.error import TelegramError
 
 BOT_TOKEN = "8505622938:AAG0iuFpjtVC6p_PuTOHAA7Vmy8fz6qFPOk"
-GROUP_ID = -1003966009327
+GROUP_ID = -1003544796468
 WELCOME_MESSAGE = "✅ Message received! Please wait for our response."
 START_MESSAGE = """Hello 👋
 
