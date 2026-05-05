@@ -1,4 +1,5 @@
 import logging
+import re
 from telegram import Update
 from telegram.ext import Application, MessageHandler, CommandHandler, filters, ContextTypes
 from telegram.error import TelegramError
@@ -28,7 +29,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = user.id
     try:
         if user_id not in user_topics:
-            topic = await context.bot.create_forum_topic(chat_id=GROUP_ID, name=f"👤 {user.full_name}")
+            topic_name = f"👤 {user.full_name} | {user_id}"
+            topic = await context.bot.create_forum_topic(chat_id=GROUP_ID, name=topic_name)
             user_topics[user_id] = topic.message_thread_id
             await context.bot.send_message(chat_id=GROUP_ID, message_thread_id=user_topics[user_id], text=f"🆕 New User\n👤 {user.full_name}\n🆔 {user_id}\n@{user.username or 'N/A'}")
         tid = user_topics[user_id]
@@ -56,6 +58,15 @@ async def handle_group_reply(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
     tid = message.message_thread_id
     target = next((uid for uid, t in user_topics.items() if t == tid), None)
+    if not target:
+        try:
+            topic_info = await context.bot.get_forum_topic(GROUP_ID, tid)
+            match = re.search(r'\| (\d+)$', topic_info.name)
+            if match:
+                target = int(match.group(1))
+                user_topics[target] = tid
+        except:
+            pass
     if not target:
         return
     try:
