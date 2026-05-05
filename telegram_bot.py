@@ -1,4 +1,4 @@
-import logging
+    import logging
 import re
 from telegram import Update
 from telegram.ext import Application, MessageHandler, CommandHandler, filters, ContextTypes
@@ -50,25 +50,41 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_group_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
-    if not message or message.chat.id != GROUP_ID:
+    if not message:
         return
-    if message.from_user and message.from_user.is_bot:
+    if message.chat.id != GROUP_ID:
         return
     if not message.message_thread_id:
         return
+
+    # Bot messages ignore karo
+    if message.from_user and message.from_user.is_bot:
+        return
+
     tid = message.message_thread_id
+    logging.info(f"Group message received in thread: {tid}")
+    logging.info(f"Current user_topics: {user_topics}")
+
+    # Memory mein dhundo
     target = next((uid for uid, t in user_topics.items() if t == tid), None)
+
+    # Agar memory mein nahi mila toh topic name se dhundo
     if not target:
         try:
             topic_info = await context.bot.get_forum_topic(GROUP_ID, tid)
-            match = re.search(r'\| (\d+)$', topic_info.name)
+            logging.info(f"Topic name: {topic_info.name}")
+            match = re.search(r'\| (\d+)', topic_info.name)
             if match:
                 target = int(match.group(1))
                 user_topics[target] = tid
-        except:
-            pass
+                logging.info(f"Found user from topic name: {target}")
+        except Exception as e:
+            logging.error(f"get_forum_topic error: {e}")
+
     if not target:
+        logging.warning(f"No target found for thread {tid}")
         return
+
     try:
         if message.text:
             await context.bot.send_message(chat_id=target, text=f"📩 Reply:\n{message.text}")
@@ -80,16 +96,17 @@ async def handle_group_reply(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await context.bot.send_voice(chat_id=target, voice=message.voice.file_id)
         elif message.document:
             await context.bot.send_document(chat_id=target, document=message.document.file_id)
+        logging.info(f"Reply sent to user: {target}")
     except TelegramError as e:
-        logging.error(f"Error: {e}")
+        logging.error(f"Send error: {e}")
 
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.ChatType.PRIVATE & ~filters.COMMAND, handle_message))
-    app.add_handler(MessageHandler(filters.Chat(GROUP_ID), handle_group_reply))
+    app.add_handler(MessageHandler(~filters.ChatType.PRIVATE, handle_group_reply))
     logging.info("✅ Bot chalu ho gaya!")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
-    main()
+    main()            
